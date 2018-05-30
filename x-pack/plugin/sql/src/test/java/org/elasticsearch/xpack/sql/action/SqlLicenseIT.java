@@ -16,6 +16,7 @@ import org.elasticsearch.license.License;
 import org.elasticsearch.license.License.OperationMode;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.fetch.subphase.DocValueFieldsContext;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 import org.elasticsearch.transport.Netty4Plugin;
@@ -56,11 +57,15 @@ public class SqlLicenseIT extends AbstractLicensesIntegrationTestCase {
     }
 
     @Override
+    protected boolean addMockHttpTransport() {
+        return false; // enable http
+    }
+
+    @Override
     protected Settings nodeSettings(int nodeOrdinal) {
         // Enable http so we can test JDBC licensing because only exists on the REST layer.
         return Settings.builder()
                 .put(super.nodeSettings(nodeOrdinal))
-                .put(NetworkModule.HTTP_ENABLED.getKey(), true)
                 .put(NetworkModule.HTTP_TYPE_KEY, Netty4Plugin.NETTY_HTTP_TRANSPORT_NAME)
                 .build();
     }
@@ -146,7 +151,8 @@ public class SqlLicenseIT extends AbstractLicensesIntegrationTestCase {
 
         SqlTranslateResponse response = client().prepareExecute(SqlTranslateAction.INSTANCE).query("SELECT * FROM test").get();
         SearchSourceBuilder source = response.source();
-        assertThat(source.docValueFields(), Matchers.contains("count"));
+        assertThat(source.docValueFields(), Matchers.contains(
+                new DocValueFieldsContext.FieldAndFormat("count", DocValueFieldsContext.USE_DEFAULT_FORMAT)));
         FetchSourceContext fetchSource = source.fetchSource();
         assertThat(fetchSource.includes(), Matchers.arrayContaining("data"));
     }
